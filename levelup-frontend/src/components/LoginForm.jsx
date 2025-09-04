@@ -9,6 +9,21 @@ import Logo from '../img/logo.png';
 
 import { useNavigate } from 'react-router-dom';
 
+// Utilitaire: décoder le payload d'un JWT (base64url)
+function decodeJWT(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  try {
+    const payload = parts[1];
+    const pad = '='.repeat((4 - (payload.length % 4)) % 4);
+    const b64 = (payload + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(b64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
 
 function LoginForm() {
   // Déclaration des états pour stocker l'email, le mot de passe et un message (erreur ou succès)
@@ -16,6 +31,7 @@ function LoginForm() {
   const [password, setPassword] = useState(''); // Champ mot de passe
   const [message, setMessage] = useState('');   // Message affiché après tentative de connexion
   const navigate = useNavigate();
+
   // Fonction exécutée lors de la soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault(); // Empêche le rechargement de la page
@@ -33,6 +49,18 @@ function LoginForm() {
 
       // Sauvegarde du token dans le localStorage pour rester connecté
       localStorage.setItem('token', token);
+
+      // Décoder le token pour récupérer l'id utilisateur (payload: { id, ... })
+      const payload = decodeJWT(token);
+      const userId = payload?.id ?? payload?.userId ?? payload?.sub ?? null;
+
+      // Sauvegarder aussi l'utilisateur minimal pour que le front puisse lire l'id
+      if (userId) {
+        localStorage.setItem('user', JSON.stringify({
+          id: userId,
+          email: payload?.email || email
+        }));
+      }
 
       // Redirection vers Dashboard
       navigate('/DashBoard');

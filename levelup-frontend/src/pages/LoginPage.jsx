@@ -7,7 +7,12 @@ function LoginPage() {
     <div class="loginPage"> 
       
       <LoginForm />
-      <img src={Loginimg} className= "bg" alt="Background Login"/>
+       <img
+        src={Loginimg}
+        className="bg d-none d-lg-block"  /* caché <992px, visible ≥992px */
+        alt="Background Login"
+        loading="lazy"
+      />
     </div>
   );
 }

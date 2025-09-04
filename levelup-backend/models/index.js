@@ -1,43 +1,39 @@
+// models/index.js
 'use strict';
 
-require('dotenv').config(); // Charge les variables depuis .env
 const fs = require('fs');
 const path = require('path');
 const Sequelize = require('sequelize');
 const basename = path.basename(__filename);
+const env = process.env.NODE_ENV || 'development';
+const config = require(__dirname + '/../config/config.js')[env];
 const db = {};
 
-// 🔧 Création de l'instance Sequelize avec .env
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASS,
-  {
-    host: process.env.DB_HOST,
-    dialect: process.env.DB_DIALECT,
-    logging: false
-  }
-);
+let sequelize;
+if (config.use_env_variable) {
+  sequelize = new Sequelize(process.env[config.use_env_variable], config);
+} else {
+  sequelize = new Sequelize(config.database, config.username, config.password, config);
+}
 
-// 📦 Chargement de tous les modèles
-fs
-  .readdirSync(__dirname)
-  .filter(file =>
-    file.indexOf('.') !== 0 &&
-    file !== basename &&
-    file.slice(-3) === '.js' &&
-    file.indexOf('.test.js') === -1
-  )
-  .forEach(file => {
-    const model = require(path.join(__dirname, file))(sequelize, Sequelize.DataTypes);
-    db[model.name] = model;
-  });
+// Import explicite (comme chez toi)
+db.User               = require('./user')(sequelize, Sequelize.DataTypes);
+db.Category           = require('./category')(sequelize, Sequelize.DataTypes);
+db.GoalTemplate       = require('./goaltemplate')(sequelize, Sequelize.DataTypes);
+db.UserGoal           = require('./usergoal')(sequelize, Sequelize.DataTypes);
+db.UserGoalCompletion = require('./usergoalcompletion')(sequelize, Sequelize.DataTypes);
+db.UserPriority       = require('./userpriority')(sequelize, Sequelize.DataTypes);
+db.Quote              = require('./quote')(sequelize, Sequelize.DataTypes);
 
-// 🔁 Application des associations
-Object.keys(db).forEach(modelName => {
-  if (db[modelName].associate) {
-    db[modelName].associate(db);
-  }
+// ✅ nouveaux modèles onboarding
+db.OnboardingQuestion         = require('./OnboardingQuestion')(sequelize, Sequelize.DataTypes);
+db.OnboardingQuestionWeight   = require('./OnboardingQuestionWeight')(sequelize, Sequelize.DataTypes);
+db.UserOnboardingSubmission   = require('./UserOnboardingSubmission')(sequelize, Sequelize.DataTypes);
+db.UserQuestionnaireAnswer    = require('./UserQuestionnaireAnswer')(sequelize, Sequelize.DataTypes);
+
+// Appel des associations
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) db[modelName].associate(db);
 });
 
 db.sequelize = sequelize;

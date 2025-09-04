@@ -93,6 +93,7 @@ code {
 .IconBox p {
   font-size: 1.5em;
 }
+
 .login {
   flex: 1;
   display: flex;
@@ -188,33 +189,47 @@ code {
   height: 100%;
   object-fit: contain; /* ou cover pour remplir */
 }
-
-
-/*DashBoard*/
-.DashBoardHead {
-  background-color: red;
+.Registerform {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 }
+
+@media (max-width: 575.98px) {
+  
+  /* styles mobile ici */
+  .loginForm input {
+    width: 20em;
+  }
+  .loginForm .btn-blue, .btn-green {
+    max-width: 20em;
+  }
+
+}
+/*DashBoard*/
+
 .navbar-custom {
   background-color: #3B82F6 ;
 }
 
 .navbar-custom img{
-  width: 20em;
-  margin-bottom: 1.5em;
+  width: 10em;
+  margin-bottom: 0.7em;
 }
 
 .offcanvas-custom .btn-close {
-  width: 3em !important;
-  height: 3em !important;
-  padding: .5rem !important;                /* zone cliquable */
-  background-size: 3rem 3rem !important;    /* agrandit le X */
+  width: 1em !important;
+  height: 1em !important;
+  padding: .1rem !important;                /* zone cliquable */
+  background-size: 1rem 1rem !important;    /* agrandit le X */
 }
 
 
 /* Taille de l’icône (les trois traits) */
 .navbar-toggler-icon {
-  width: 5em;   /* largeur */
-  height: 3em;  /* hauteur */
+  width: 2em;   /* largeur */
+  height: 2em;  /* hauteur */
 }
 /* Largeur personnalisée du offcanvas */
 /* Largeur + responsive */
@@ -227,11 +242,11 @@ code {
   }
 }
 .offcanvas-body {
-  font-size: 4em;  /* plus grand */
+  font-size: 2em;  /* plus grand */
 }
 /* Titres dans l’entête */
 .offcanvas-title {
-  font-size: 5em;
+  font-size: 3em;
   font-weight: bold;
 }
 /* Hauteur/arrondi de la barre */

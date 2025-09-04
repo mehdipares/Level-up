@@ -1,34 +1,48 @@
+// server.js
 require('dotenv').config();
-const usersRouter = require('./routes/users');
-const goalsRouter = require('./routes/goals');
 const express = require('express');
-const { sequelize } = require('./models');
-const categoriesRouter = require('./routes/categories');
-const authRoutes = require('./routes/auth');
 const cors = require('cors');
-const app = express();
-const PORT = 3000;
+const { sequelize } = require('./models');
 
+// Routers
+const usersRouter         = require('./routes/users');          // ex: /users (profil, liste, etc.)
+const userGoalsRouter     = require('./routes/userGoals');      // ex: /users/:id/user-goals...
+const categoriesRouter    = require('./routes/categories');
+const authRouter          = require('./routes/auth');           // OK si déjà fonctionnel
+const quotesRouter        = require('./routes/quotes');
+const maybeAuth = require('./utils/maybeAuth');
+const goalTemplatesRouter = require('./routes/goalTemplates');
+const onboardingRouter   = require('./routes/onboarding');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 app.use(cors({
-  origin: 'http://localhost:3001', // front React
+  origin: 'http://localhost:3001',
   credentials: true
 }));
-
-
 app.use(express.json());
-//établissement routes 
-app.use('/users', usersRouter);
-app.use('/goals', goalsRouter);
-app.use('/categories', categoriesRouter);
-app.use('/auth', authRoutes);
 
-//message console 
+// Mount des routes
+app.use('/auth',           authRouter);
+app.use('/categories',     categoriesRouter);
+app.use('/quotes',         quotesRouter);
+app.use('/goal-templates', maybeAuth, goalTemplatesRouter);
+app.use('/onboarding',     onboardingRouter);
+
+// On monte *les deux* routers sous /users (ils gèrent des sous-chemins différents)
+app.use('/users', usersRouter);
+app.use('/users', userGoalsRouter);
+
+// Ping simple
 app.get('/', (req, res) => {
   res.send('LevelUp backend is running!');
 });
 
-//message port/succes
+// 404 (après toutes les routes)
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+
+// Boot
 app.listen(PORT, async () => {
   console.log(`✅ Serveur démarré sur http://localhost:${PORT}`);
   try {
