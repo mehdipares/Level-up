@@ -40,10 +40,10 @@ export default function Navbar() {        // <-- Composant en PascalCase
         <div className="offcanvas-body">
           <ul className="navbar-nav">
             <li className="nav-item">
-              <a className="nav-link" href="#">Accueil</a>
+              <a className="nav-link" href="/DashBoard">DashBoard</a>
             </li>
             <li className="nav-item">
-              <a className="nav-link" href="#">Profil</a>
+              <a className="nav-link" href="GoalChoice">GoalChoice</a>
             </li>
           </ul>
         </div>

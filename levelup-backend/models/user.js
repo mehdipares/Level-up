@@ -1,20 +1,35 @@
-'use strict';
-const { Model } = require('sequelize');
+// models/user.js
 module.exports = (sequelize, DataTypes) => {
-  class User extends Model {
-    static associate(models) {
-      this.hasMany(models.Goal, { foreignKey: 'user_id', as: 'goals' });
-    }
-  }
-  User.init({
-    username: DataTypes.STRING,
-    email: DataTypes.STRING,
-    password_hash: DataTypes.TEXT,
-    level: DataTypes.INTEGER,
-    xp: DataTypes.INTEGER
+  const User = sequelize.define('User', {
+    username:       { type: DataTypes.STRING,  allowNull: true },
+    email:          { type: DataTypes.STRING,  allowNull: false, unique: true },
+    password_hash:  { type: DataTypes.STRING,  allowNull: true },
+    level:          { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+    xp:             { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    // ✅ flag onboarding
+    onboarding_done:{ type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
   }, {
-    sequelize,
-    modelName: 'User',
+    tableName: 'users',
+    timestamps: true,
   });
+
+  User.associate = (models) => {
+    // existants
+    User.hasMany(models.UserGoal,     { foreignKey: 'user_id', as: 'user_goals' });
+    User.hasMany(models.UserPriority, { foreignKey: 'user_id', as: 'preferences' });
+
+    // ✅ onboarding
+    User.hasMany(models.UserOnboardingSubmission, {
+      foreignKey: 'user_id',
+      as: 'onboarding_submissions',
+      onDelete: 'CASCADE',
+    });
+    User.hasMany(models.UserQuestionnaireAnswer, {
+      foreignKey: 'user_id',
+      as: 'onboarding_answers',
+      onDelete: 'CASCADE',
+    });
+  };
+
   return User;
 };

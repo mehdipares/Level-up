@@ -1,16 +1,16 @@
-'use strict';
-const { Model } = require('sequelize');
+// models/category.js
 module.exports = (sequelize, DataTypes) => {
-  class Category extends Model {
-    static associate(models) {
-      this.hasMany(models.Goal, { foreignKey: 'category_id', as: 'goals' });
-    }
-  }
-  Category.init({
-    name: DataTypes.STRING
+  const Category = sequelize.define('Category', {
+    name: { type: DataTypes.STRING, allowNull: false }
   }, {
-    sequelize,
-    modelName: 'Category',
+    tableName: 'categories',
+    timestamps: true,
   });
+
+  Category.associate = (models) => {
+    Category.hasMany(models.GoalTemplate,  { foreignKey: 'category_id', as: 'GoalTemplates' });
+    Category.hasMany(models.UserPriority,  { foreignKey: 'category_id', as: 'UserPriorities' });
+  };
+
   return Category;
 };
