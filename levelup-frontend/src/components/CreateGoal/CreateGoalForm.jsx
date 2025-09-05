@@ -1,6 +1,6 @@
-// src/components/CreateGoal/CreateGoalForm.jsx
 import { useEffect, useMemo, useState } from 'react';
 import { getCurrentUserId } from '../../utils/auth';
+import '../../styles/CreateGoal/create-goal.css'; // ⬅️ nouveaux styles
 
 /** Headers JSON + token */
 function authHeaders() {
@@ -53,6 +53,7 @@ export default function CreateGoalForm() {
   const [baseXP, setBaseXP] = useState(0);
   const [xpEffective, setXpEffective] = useState(0);
   const [appliedBonusLabel, setAppliedBonusLabel] = useState('—');
+  const [xpPulse, setXpPulse] = useState(false); // ⬅️ pour animer la boîte XP
 
   // UX
   const [submitting, setSubmitting] = useState(false);
@@ -110,7 +111,6 @@ export default function CreateGoalForm() {
         setPrioMap(map);
       } catch (e) {
         if (!alive) return;
-        // On n’empêche pas la création si ça rate; on affichera juste la base sans bonus
         setPrioMap({});
       } finally {
         if (alive) setLoadingPrio(false);
@@ -129,6 +129,11 @@ export default function CreateGoalForm() {
     setBaseXP(bxp);
     setXpEffective(eff);
     setAppliedBonusLabel(rank === 1 ? '+50% (prio #1)' : rank === 2 ? '+25% (prio #2)' : '—');
+
+    // pop visuel sur changement d'XP
+    setXpPulse(true);
+    const id = setTimeout(() => setXpPulse(false), 450);
+    return () => clearTimeout(id);
   }, [categoryId, categoryName, cadence, prioMap]);
 
   const onCategoryChange = (val) => {
@@ -167,7 +172,7 @@ export default function CreateGoalForm() {
         title: title.trim(),
         description: desc.trim() || null,
         category_id: Number(categoryId),
-        base_xp: Number(baseXP), // ← garder la base (ne pas multiplier ici pour éviter double bonus)
+        base_xp: Number(baseXP),
         frequency_type: cadence === 'weekly' ? 'weekly' : 'daily',
         frequency_interval: 1,
         enabled: true,
@@ -203,24 +208,20 @@ export default function CreateGoalForm() {
     }
   };
 
-  // Styles utilitaires
-  const inputStyle = { borderRadius: 14, boxShadow: '0 4px 14px rgba(0,0,0,.06)' };
-  const labelStyle = { fontWeight: 700, color: '#F1F5F9' };
-
   return (
-    <form onSubmit={handleSubmit}>
-      {error && <div className="alert alert-danger">{String(error)}</div>}
-      {success && <div className="alert alert-success">{String(success)}</div>}
+    <form onSubmit={handleSubmit} className="cg-card">
+      {/* Alerts (restylées) */}
+      {error && <div className="alert cg-alert cg-alert-danger">{String(error)}</div>}
+      {success && <div className="alert cg-alert cg-alert-success">{String(success)}</div>}
 
       {/* Titre */}
       <div className="mb-3">
-        <label className="form-label" style={labelStyle}>Titre de l’objectif *</label>
+        <label className="form-label cg-label">Titre de l’objectif *</label>
         <input
-          className="form-control"
+          className="form-control cg-field"
           placeholder="Ex : Boire 2 litres d’eau"
           value={title}
           onChange={e => setTitle(e.target.value)}
-          style={inputStyle}
           maxLength={120}
           required
         />
@@ -228,14 +229,13 @@ export default function CreateGoalForm() {
 
       {/* Description */}
       <div className="mb-3">
-        <label className="form-label" style={labelStyle}>Description (optionnel)</label>
+        <label className="form-label cg-label">Description (optionnel)</label>
         <textarea
-          className="form-control"
+          className="form-control cg-field"
           rows={3}
           placeholder="Détails, pourquoi, comment…"
           value={desc}
           onChange={e => setDesc(e.target.value)}
-          style={inputStyle}
           maxLength={500}
         />
       </div>
@@ -244,104 +244,72 @@ export default function CreateGoalForm() {
       <div className="row g-3">
         {/* Catégorie */}
         <div className="col-12 col-md-6">
-          <label className="form-label" style={labelStyle}>Catégorie *</label>
-          <select
-            className="form-select"
-            value={categoryId}
-            onChange={e => onCategoryChange(e.target.value)}
-            style={inputStyle}
-            disabled={loadingCats}
-            required
-          >
-            {loadingCats && <option>Chargement…</option>}
-            {!loadingCats && categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <div className="form-text" style={{ color: '#E9D5FF' }}>
-            L’XP est calculée automatiquement selon tes priorités.
-          </div>
+          <label className="form-label cg-label">Catégorie *</label>
+          {loadingCats ? (
+            <div className="cg-skel-block">
+              <div className="cg-skel-line w-75" />
+            </div>
+          ) : (
+            <select
+              className="form-select cg-field"
+              value={categoryId}
+              onChange={e => onCategoryChange(e.target.value)}
+              required
+            >
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          )}
+          <div className="form-text cg-help">L’XP est calculée automatiquement selon tes priorités.</div>
         </div>
 
-        {/* Cadence → toggle visible (pas de menu) */}
+        {/* Cadence → toggle pilule */}
         <div className="col-12 col-md-3">
-          <label className="form-label" style={labelStyle}>Cadence *</label>
-          <div
-            className="d-inline-flex w-100"
-            role="group"
-            aria-label="Choix cadence"
-            style={{
-              ...inputStyle,
-              padding: 4,
-              background: '#fff',
-              border: '1px solid #e5e7eb',
-            }}
-          >
+          <label className="form-label cg-label">Cadence *</label>
+          <div className="cg-toggle" role="group" aria-label="Choix cadence">
             <button
               type="button"
               onClick={() => setCadence('daily')}
-              className="btn btn-sm flex-fill"
+              className={`cg-toggle-btn ${cadence === 'daily' ? 'is-active is-daily' : ''}`}
               aria-pressed={cadence === 'daily'}
-              style={{
-                borderRadius: 12,
-                border: 'none',
-                background: cadence === 'daily' ? '#22c55e' : 'transparent',
-                color: cadence === 'daily' ? '#fff' : '#111827',
-                fontWeight: 700,
-              }}
             >
               Quotidien
             </button>
             <button
               type="button"
               onClick={() => setCadence('weekly')}
-              className="btn btn-sm flex-fill"
+              className={`cg-toggle-btn ${cadence === 'weekly' ? 'is-active is-weekly' : ''}`}
               aria-pressed={cadence === 'weekly'}
-              style={{
-                borderRadius: 12,
-                border: 'none',
-                background: cadence === 'weekly' ? '#3b82f6' : 'transparent',
-                color: cadence === 'weekly' ? '#fff' : '#111827',
-                fontWeight: 700,
-              }}
             >
               1× / semaine
             </button>
           </div>
         </div>
 
-        {/* XP auto (affiche la valeur effective + badge bonus) */}
+        {/* XP auto (valeur + bonus) */}
         <div className="col-12 col-md-3">
-          <label className="form-label" style={labelStyle}>XP (auto, selon tes priorités)</label>
+          <label className="form-label cg-label">XP (auto, selon tes priorités)</label>
           <div
-            className="d-flex align-items-center justify-content-between px-3"
-            style={{
-              ...inputStyle,
-              height: 38,
-              background: '#f1f5f9',
-              fontWeight: 800,
-              color: '#0f172a',
-            }}
+            className={`cg-xp-box ${xpPulse ? 'is-pulse' : ''} ${loadingPrio ? 'is-loading' : ''}`}
             aria-live="polite"
             title={loadingPrio ? 'Calcul des priorités…' : `Bonus: ${appliedBonusLabel}`}
           >
-            <span>{xpEffective} XP</span>
-            <span className="badge bg-secondary" style={{ fontWeight: 700 }}>
+            <span className="cg-xp-value">{xpEffective} XP</span>
+            <span className={`cg-bonus-badge ${appliedBonusLabel !== '—' ? 'has-bonus' : ''}`}>
               {loadingPrio ? '…' : appliedBonusLabel}
             </span>
           </div>
-          <div className="form-text" style={{ color: '#E9D5FF' }}>
-            Affiché avec bonus: #1 = +50%, #2 = +25%.
-          </div>
+          <div className="form-text cg-help">Affiché avec bonus: #1 = +50%, #2 = +25%.</div>
         </div>
       </div>
 
       {/* Submit */}
       <div className="mt-4 d-flex gap-2">
-        <button className="btn btn-light" type="button" onClick={resetForm} disabled={submitting}>
+        <button className="btn cg-btn-outline" type="button" onClick={resetForm} disabled={submitting}>
           Réinitialiser
         </button>
-        <button className="btn btn-success" type="submit" disabled={submitting || loadingCats}>
+        <button className="btn cg-btn-primary" type="submit" disabled={submitting || loadingCats}>
           {submitting ? 'Création…' : 'Créer l’objectif'}
         </button>
       </div>

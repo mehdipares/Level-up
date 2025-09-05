@@ -1,0 +1,81 @@
+/* ================== XP Bar — Animations ================== */
+
+.xp-level {
+  display: inline-block;
+  font-weight: 900;
+}
+.xp-level.is-pop {
+  animation: xp-level-pop 600ms cubic-bezier(.2,.8,.2,1);
+}
+@keyframes xp-level-pop {
+  0%   { transform: scale(.92); filter: brightness(.98); }
+  50%  { transform: scale(1.12); filter: brightness(1.08); }
+  100% { transform: scale(1);    filter: none; }
+}
+
+.xp-numbers {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Barre : fond doux + bords arrondis */
+.xp-progress {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  border-radius: 999px;
+}
+
+/* Remplissage coloré avec dégradé */
+.xp-progress .progress-bar.bg-xp {
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  transition: width .6s ease;
+  position: relative;
+}
+
+/* Shine (balayage) quand on gagne de l'XP */
+.xp-progress.is-gain .progress-bar.bg-xp::after {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -30%;
+  width: 28%;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.65), rgba(255,255,255,0));
+  transform: translateX(-100%);
+  filter: blur(0.2px);
+  animation: xp-shine .8s ease-out forwards;
+}
+@keyframes xp-shine {
+  to { transform: translateX(400%); opacity: 0; }
+}
+
+/* Ripple à l’extrémité du fill */
+.xp-progress.is-gain .progress-bar.bg-xp::before {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 12px; height: 12px;
+  transform: translateY(-50%) scale(.45);
+  border-radius: 999px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.6) inset, 0 10px 20px rgba(22,163,74,.3);
+  opacity: 0;
+  animation: xp-ripple .6s ease-out .18s forwards;
+}
+@keyframes xp-ripple {
+  0%   { opacity: 1; transform: translateY(-50%) scale(.45); }
+  70%  { opacity: .96; transform: translateY(-50%) scale(1.45); }
+  100% { opacity: 0; transform: translateY(-50%) scale(1.8); }
+}
+
+/* Motion réduite */
+@media (prefers-reduced-motion: reduce) {
+  .xp-level.is-pop,
+  .xp-progress.is-gain .progress-bar.bg-xp::after,
+  .xp-progress.is-gain .progress-bar.bg-xp::before {
+    animation: none !important;
+  }
+  .xp-progress .progress-bar.bg-xp { transition: none !important; }
+}
+.xp-progress .progress-bar.no-trans { transition: none !important; }
+.xp-progress .progress-bar.bg-xp { will-change: width; }

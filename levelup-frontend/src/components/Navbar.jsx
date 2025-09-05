@@ -45,9 +45,22 @@ export default function Navbar() {        // <-- Composant en PascalCase
             <li className="nav-item">
               <a className="nav-link" href="GoalChoice">GoalChoice</a>
             </li>
+            <li className="nav-item">
+              <a className="nav-link" href="CreateGoal">CreateGoal</a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="User">Profil</a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="Priorities">Priorités</a>
+            </li>
+            <li className="nav-item">
+              <a className="nav-link" href="Legal">Legal</a>
+            </li>
           </ul>
         </div>
       </div>
     </nav>
   );
 }
+

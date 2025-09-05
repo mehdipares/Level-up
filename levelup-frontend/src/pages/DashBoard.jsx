@@ -2,8 +2,8 @@
 import XPBar from '../components/XPBar';
 import Navbar from '../components/Navbar';
 import QuoteOfTheDay from '../components/QuoteOfTheDay';
-import UserGoals from '../components/UserGoals';
-import UserPrioritiesCard from '../components/UserPrioritiesCard'; // ✅ nouveau
+import UserGoals from '../components/Dashboard/UserGoals';
+import UserPrioritiesCard from '../components/Dashboard/UserPrioritiesCard'; // ✅ nouveau
 
 export default function DashBoard() {
   return (
