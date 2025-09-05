@@ -4,9 +4,14 @@ import { getCurrentUserId } from '../utils/auth';
 
 import CatalogCard from '../components/GoalChoice/CatalogCard';
 import ManageCard from '../components/GoalChoice/ManageCard';
+import '../styles/Goalchoice/goal-cards.css'; // pour les styles des cartes + toast
 
 export default function GoalChoice() {
   const userId = useMemo(() => getCurrentUserId() ?? null, []);
+
+  // ✅ toast non-bloquant (utilise .toast-lite en CSS)
+  const [flash, setFlash] = useState(null);
+
   const [items, setItems] = useState([]);
   const [q, setQ] = useState('');
   const [cadence] = useState('daily');
@@ -17,11 +22,12 @@ export default function GoalChoice() {
   const [err, setErr] = useState(null);
 
   // ----- Espace Gestion -----
-  const [manageStatus, setManageStatus] = useState('all');
+  const [manageStatus, setManageStatus] = useState('all'); // ✅ par défaut 'all'
   const [goals, setGoals] = useState([]);
   const [mgmtBusy, setMgmtBusy] = useState(null);
-  const [cadenceEdit, setCadenceEdit] = useState({});
+  const [cadenceEdit, setCadenceEdit] = useState({}); // ✅ objet (pas null)
 
+  // ✅ fetchJSON avec token Authorization
   const fetchJSON = async (url, init) => {
     const h = new Headers(init?.headers || {});
     h.set('Accept', 'application/json');
@@ -90,10 +96,11 @@ export default function GoalChoice() {
     }
   };
 
+  // Mount
   useEffect(() => {
     loadCategories();
     loadTemplates();
-    loadUserGoals('all');
+    loadUserGoals('all'); // ✅ charge tout au départ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,13 +111,13 @@ export default function GoalChoice() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  // 🔁 Recharge quand le filtre change (perso / cat / tous)
+  // 🔁 Filtre changed
   useEffect(() => {
     loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  // 🔁 Recharge quand les catégories arrivent (si un filtre catégorie est actif)
+  // 🔁 Catégories prêtes
   useEffect(() => {
     if (filter !== 'tous' && filter !== 'perso' && Object.keys(catMap).length) {
       loadTemplates();
@@ -126,7 +133,8 @@ export default function GoalChoice() {
         method: 'POST',
         body: JSON.stringify({ template_id: Number(tplId), cadence }),
       });
-      alert('Ajouté à tes objectifs ✅');
+      // ✅ toast non bloquant
+      setFlash({ type: 'success', text: 'Ajouté à tes objectifs ✅' });
       setErr(null);
       await loadUserGoals(manageStatus);
     } catch (e) {
@@ -135,6 +143,13 @@ export default function GoalChoice() {
       setBusy(null);
     }
   };
+
+  // auto-hide du toast après 2.2s
+  useEffect(() => {
+    if (!flash) return;
+    const id = setTimeout(() => setFlash(null), 2200);
+    return () => clearTimeout(id);
+  }, [flash]);
 
   // ⚠️ en mode 'perso', on ne re-filtre pas côté client (déjà fait par l'API)
   const byCategory = (g) => {
@@ -204,6 +219,18 @@ export default function GoalChoice() {
   return (
     <div className="DashBoard">
       <Navbar />
+
+      {/* ✅ Toast centré stylé (utilise .toast-lite en CSS) */}
+      {flash && (
+        <div
+          className={`toast-lite ${flash.type === 'success' ? 'toast-success' : ''}`}
+          role="status"
+          aria-live="polite"
+        >
+          {flash.text}
+        </div>
+      )}
+
       <div className="container py-3">
         {/* Carte BLEUE : catalogue */}
         <CatalogCard
@@ -221,8 +248,8 @@ export default function GoalChoice() {
 
         {/* Carte VIOLETTE : gestion */}
         <ManageCard
-          goals={goals}
-          manageStatus={manageStatus}
+          goals={goals}                 // ✅ bon prop name
+          manageStatus={manageStatus}   // ✅ bon prop name
           onChangeStatus={async (v) => {
             setManageStatus(v);
             await loadUserGoals(v);

@@ -1,3 +1,7 @@
+import { useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import '../../styles/Goalchoice/goal-cards.css';
+
 /**
  * Carte VIOLETTE de gestion des objectifs (compacte + scrollable).
  * Cadence = select "pilule" coloré (Quotidien ↔ 1× / semaine) avec APPLY auto.
@@ -15,6 +19,24 @@ export default function ManageCard({
   onDelete,
   onApplyCadence,
 }) {
+  // ---------- Helpers ----------
+  const isArchivedFlag = (g) =>
+    !!(
+      g?.archived ||
+      g?.is_archived ||
+      (g?.status && String(g.status).toLowerCase() === 'archived') ||
+      g?.archived_at
+    );
+
+  // Tri : actifs d’abord, archivés ensuite (pour "all")
+  const orderedGoals = useMemo(() => {
+    const arr = Array.isArray(goals) ? [...goals] : [];
+    return arr.sort((a, b) => (isArchivedFlag(a) ? 1 : 0) - (isArchivedFlag(b) ? 1 : 0));
+  }, [goals]);
+
+  const spring = { type: 'spring', stiffness: 500, damping: 40, mass: 0.5 };
+
+  // ---------- UI theming ----------
   const themeFor = (mode) =>
     mode === 'weekly'
       ? { bg: '#eef2ff', border: '#c7d2fe', text: '#3730a3', ring: '0 0 0 4px rgba(99,102,241,.15)' }
@@ -93,20 +115,27 @@ export default function ManageCard({
             <option value="active">Actifs</option>
             <option value="archived">Archivés</option>
           </select>
-          <button className="btn btn-light btn-sm" onClick={onRefresh} style={{ borderRadius: 12 }}>
+          <motion.button
+            whileHover={{ y: -1 }}
+            whileTap={{ y: 1, scale: 0.98 }}
+            transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+            className="btn btn-light btn-sm"
+            onClick={onRefresh}
+            style={{ borderRadius: 12 }}
+          >
             Rafraîchir
-          </button>
+          </motion.button>
         </div>
       </div>
 
       {/* Liste */}
-      {!goals.length && (
+      {!orderedGoals.length && (
         <div className="text-light" style={{ opacity: 0.9 }}>
           Aucun objectif à afficher.
         </div>
       )}
 
-      {!!goals.length && (
+      {!!orderedGoals.length && (
         <div
           className="mt-1"
           style={{
@@ -117,107 +146,132 @@ export default function ManageCard({
             paddingRight: 4,
           }}
         >
-          <ul className="list-unstyled d-flex flex-column gap-2 m-0">
-            {goals.map((g) => {
-              const isArchived = g.status === 'archived';
-              const selected =
-                cadenceEdit[g.id] ?? g.cadence ?? (g.effective_frequency_type === 'weekly' ? 'weekly' : 'daily');
+          <motion.ul
+            layout
+            transition={spring}
+            className="list-unstyled d-flex flex-column gap-2 m-0"
+          >
+            <AnimatePresence initial={false}>
+              {orderedGoals.map((g) => {
+                const archived = isArchivedFlag(g);
+                const selected =
+                  cadenceEdit[g.id] ?? g.cadence ?? (g.effective_frequency_type === 'weekly' ? 'weekly' : 'daily');
 
-              const disabledAny =
-                mgmtBusy === g.id ||
-                mgmtBusy === `sched-${g.id}` ||
-                mgmtBusy === `unarch-${g.id}` ||
-                mgmtBusy === `del-${g.id}`;
+                const disabledAny =
+                  mgmtBusy === g.id ||
+                  mgmtBusy === `sched-${g.id}` ||
+                  mgmtBusy === `unarch-${g.id}` ||
+                  mgmtBusy === `del-${g.id}`;
 
-              const applyCadence = async (val) => {
-                setCadenceEdit?.((prev) => ({ ...prev, [g.id]: val })); // optimiste
-                try {
-                  await onApplyCadence?.(g.id, val);
-                } catch {
-                  setCadenceEdit?.((prev) => ({ ...prev, [g.id]: selected }));
-                }
-              };
+                const applyCad = async (val) => {
+                  setCadenceEdit?.((prev) => ({ ...prev, [g.id]: val })); // optimiste
+                  try {
+                    await onApplyCadence?.(g.id, val);
+                  } catch {
+                    setCadenceEdit?.((prev) => ({ ...prev, [g.id]: selected }));
+                  }
+                };
 
-              return (
-                <li key={g.id}>
-                  <div
-                    className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between rounded px-3 py-2 border bg-white"
-                    style={{
-                      position: 'relative',
-                      borderRadius: 28,
-                      border: '1px solid #d6bcfa',
-                      boxShadow: '0 6px 22px rgba(124,58,237,0.10)',
-                      gap: 10,
-                      minHeight: 56,
-                      background: isArchived ? 'linear-gradient(180deg, #fbfaff, #f6f1ff)' : '#ffffff',
-                    }}
+                return (
+                  <motion.li
+                    key={g.id}
+                    layout
+                    transition={spring}
+                    initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
                   >
-                    {/* Badge Archivé */}
-                    {isArchived && (
-                      <span className="badge bg-secondary" style={{ position: 'absolute', top: 8, right: 8 }}>
-                        Archivé
-                      </span>
-                    )}
-
-                    {/* Titre */}
-                    <div
-                      className="pe-sm-3 flex-grow-1"
-                      title={g.title}
+                    <motion.div
+                      layout
+                      transition={spring}
+                      className="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between rounded px-3 py-2 border bg-white"
                       style={{
-                        fontWeight: 800,
-                        lineHeight: 1.2,
-                        color: isArchived ? '#6b7280' : '#111827',
+                        position: 'relative',
+                        borderRadius: 28,
+                        border: '1px solid #d6bcfa',
+                        boxShadow: '0 6px 22px rgba(124,58,237,0.10)',
+                        gap: 10,
+                        minHeight: 56,
+                        background: archived ? 'linear-gradient(180deg, #fbfaff, #f6f1ff)' : '#ffffff',
                       }}
+                      whileHover={{ y: -1 }}
                     >
-                      {g.title}
-                    </div>
-
-                    {/* Cadence (pilule) + actions */}
-                    <div className="d-flex align-items-stretch gap-2">
-                      <CadenceSelectPill
-                        value={selected}
-                        disabled={isArchived || disabledAny}
-                        onChange={applyCadence}
-                      />
-
-                      {!isArchived ? (
-                        <button
-                          className="btn btn-outline-danger btn-sm"
-                          disabled={disabledAny}
-                          onClick={() => onArchive?.(g.id)}
-                          title="Archiver (conserve l'historique)"
-                          style={{ borderRadius: 12 }}
-                        >
-                          {mgmtBusy === g.id ? '…' : 'Archiver'}
-                        </button>
-                      ) : (
-                        <div className="d-flex flex-column gap-1">
-                          <button
-                            className="btn btn-success btn-sm"
-                            disabled={mgmtBusy === `unarch-${g.id}` || mgmtBusy === `del-${g.id}`}
-                            onClick={() => onUnarchive?.(g.id)}
-                            title="Réactiver"
-                            style={compactBtn}
-                          >
-                            {mgmtBusy === `unarch-${g.id}` ? '…' : 'Réactiver'}
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            disabled={mgmtBusy === `del-${g.id}` || mgmtBusy === `unarch-${g.id}`}
-                            onClick={() => onDelete?.(g.id)}
-                            title="Supprimer définitivement (archivé uniquement)"
-                            style={compactBtn}
-                          >
-                            {mgmtBusy === `del-${g.id}` ? '…' : 'Supprimer'}
-                          </button>
-                        </div>
+                      {/* Badge Archivé */}
+                      {archived && (
+                        <span className="badge bg-secondary" style={{ position: 'absolute', top: 8, right: 8 }}>
+                          Archivé
+                        </span>
                       )}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+
+                      {/* Titre */}
+                      <div
+                        className="pe-sm-3 flex-grow-1"
+                        title={g.title}
+                        style={{
+                          fontWeight: 800,
+                          lineHeight: 1.2,
+                          color: archived ? '#6b7280' : '#111827',
+                        }}
+                      >
+                        {g.title}
+                      </div>
+
+                      {/* Cadence (pilule) + actions */}
+                      <div className="d-flex align-items-stretch gap-2">
+                        <CadenceSelectPill
+                          value={selected}
+                          disabled={archived || disabledAny}
+                          onChange={applyCad}
+                        />
+
+                        {!archived ? (
+                          <motion.button
+                            whileHover={{ y: -1 }}
+                            whileTap={{ y: 1, scale: 0.98 }}
+                            transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+                            className="btn btn-outline-danger btn-sm"
+                            disabled={disabledAny}
+                            onClick={() => onArchive?.(g.id)}
+                            title="Archiver (conserve l'historique)"
+                            style={{ borderRadius: 12 }}
+                          >
+                            {mgmtBusy === g.id ? '…' : 'Archiver'}
+                          </motion.button>
+                        ) : (
+                          <div className="d-flex flex-column gap-1">
+                            <motion.button
+                              whileHover={{ y: -1 }}
+                              whileTap={{ y: 1, scale: 0.98 }}
+                              transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+                              className="btn btn-success btn-sm"
+                              disabled={mgmtBusy === `unarch-${g.id}` || mgmtBusy === `del-${g.id}`}
+                              onClick={() => onUnarchive?.(g.id)}
+                              title="Réactiver"
+                              style={compactBtn}
+                            >
+                              {mgmtBusy === `unarch-${g.id}` ? '…' : 'Réactiver'}
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ y: -1 }}
+                              whileTap={{ y: 1, scale: 0.98 }}
+                              transition={{ type: 'spring', stiffness: 600, damping: 30 }}
+                              className="btn btn-danger btn-sm"
+                              disabled={mgmtBusy === `del-${g.id}` || mgmtBusy === `unarch-${g.id}`}
+                              onClick={() => onDelete?.(g.id)}
+                              title="Supprimer définitivement (archivé uniquement)"
+                              style={compactBtn}
+                            >
+                              {mgmtBusy === `del-${g.id}` ? '…' : 'Supprimer'}
+                            </motion.button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </motion.li>
+                );
+              })}
+            </AnimatePresence>
+          </motion.ul>
         </div>
       )}
     </div>
