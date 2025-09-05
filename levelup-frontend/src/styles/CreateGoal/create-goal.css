@@ -1,0 +1,209 @@
+/* ============================================================
+   =                  Create Goal — Styles                     =
+   ============================================================ */
+:root {
+  --cg-indigo-500: #7c3aed;
+  --cg-indigo-700: #5b21b6;
+  --cg-slate-900:  #0f172a;
+  --cg-muted:      #e2e8f0;
+
+  --cg-radius-card: 28px;
+  --cg-radius-field: 14px;
+  --cg-shadow-card: 0 12px 30px rgba(124,58,237,.25);
+  --cg-shadow-field: 0 4px 14px rgba(0,0,0,.06);
+}
+
+/* Carte conteneur */
+.cg-card {
+  background: linear-gradient(180deg, var(--cg-indigo-500), var(--cg-indigo-700));
+  color: #fff;
+  border-radius: var(--cg-radius-card);
+  box-shadow: var(--cg-shadow-card);
+  padding: 18px;
+}
+
+/* Labels */
+.cg-label {
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+/* Inputs/Select/Textarea unifiés */
+.cg-field {
+  border-radius: var(--cg-radius-field);
+  box-shadow: var(--cg-shadow-field);
+  border: 1px solid #e5e7eb;
+}
+
+.cg-field:focus {
+  border-color: #c4b5fd; /* violet-300 */
+  box-shadow: 0 0 0 4px rgba(196,181,253,.25), var(--cg-shadow-field);
+}
+
+/* Aide */
+.cg-help {
+  color: #E9D5FF; /* purple-200 */
+}
+
+/* Toggle pilule (cadence) */
+.cg-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: var(--cg-shadow-field);
+}
+
+.cg-toggle-btn {
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+  color: #111827;
+  background: transparent;
+  transition: transform .12s ease, background-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+.cg-toggle-btn:hover { transform: translateY(-1px); }
+.cg-toggle-btn:active { transform: translateY(1px) scale(.98); }
+
+/* États actifs, teintes distinctes */
+.cg-toggle-btn.is-active.is-daily {
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(34,197,94,.25);
+}
+.cg-toggle-btn.is-active.is-weekly {
+  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(59,130,246,.25);
+}
+
+/* Boîte XP (verre clair) */
+.cg-xp-box {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: var(--cg-radius-field);
+  background: #f1f5f9; /* slate-100 */
+  border: 1px solid #e5e7eb;
+  box-shadow: var(--cg-shadow-field);
+  color: var(--cg-slate-900);
+  font-weight: 800;
+  position: relative;
+  overflow: hidden;
+}
+
+.cg-xp-box.is-loading {
+  opacity: .7;
+}
+
+.cg-xp-value { letter-spacing: .2px; }
+
+/* Badge bonus */
+.cg-bonus-badge {
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: #e5e7eb;
+  color: #111827;
+}
+.cg-bonus-badge.has-bonus {
+  background: #ddd6fe; /* violet-200 */
+  color: #4c1d95;      /* violet-900 */
+  border: 1px solid #c4b5fd;
+}
+
+/* Pop/Glow à la mise à jour de l'XP */
+.cg-xp-box.is-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(196,181,253,.35);
+  animation: cg-xp-pulse 450ms ease-out forwards;
+}
+@keyframes cg-xp-pulse {
+  0%   { opacity: 1; transform: scale(1); }
+  70%  { opacity: .95; transform: scale(1.02); }
+  100% { opacity: 0; transform: scale(1.06); }
+}
+
+/* Alerts (restylées) */
+.cg-alert {
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.25);
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
+.cg-alert-success {
+  background: linear-gradient(180deg, rgba(34,197,94,.2), rgba(34,197,94,.12));
+  color: #eafff2;
+}
+.cg-alert-danger {
+  background: linear-gradient(180deg, rgba(239,68,68,.25), rgba(239,68,68,.12));
+  color: #fff5f5;
+}
+
+/* Boutons */
+.cg-btn-primary {
+  border-radius: 999px;
+  font-weight: 800;
+  background: linear-gradient(180deg, #22c55e, #16a34a);
+  color: #fff;
+  border: none;
+  box-shadow: 0 10px 24px rgba(34,197,94,.25);
+  transition: transform .12s ease, box-shadow .2s ease, filter .2s ease;
+}
+.cg-btn-primary:hover   { transform: translateY(-1px); box-shadow: 0 16px 30px rgba(34,197,94,.32); }
+.cg-btn-primary:active  { transform: translateY(1px) scale(.98); }
+.cg-btn-primary:disabled{ filter: grayscale(.2) brightness(.95); }
+
+.cg-btn-outline {
+  border-radius: 999px;
+  font-weight: 800;
+  background: #fff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  box-shadow: var(--cg-shadow-field);
+  transition: transform .12s ease, box-shadow .2s ease;
+}
+.cg-btn-outline:hover { transform: translateY(-1px); }
+.cg-btn-outline:active{ transform: translateY(1px) scale(.98); }
+
+/* Skeleton bloc pour select catégories */
+.cg-skel-block {
+  height: 38px;
+  border-radius: var(--cg-radius-field);
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  position: relative;
+  overflow: hidden;
+  display: flex; align-items: center; padding: 0 12px;
+}
+.cg-skel-line {
+  height: 12px; border-radius: 8px; background: #e2e8f0;
+}
+.cg-skel-block::after {
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  transform: translateX(-100%);
+  animation: cg-skel 1.4s infinite;
+}
+@keyframes cg-skel { to { transform: translateX(100%); } }
+
+/* Motion réduite */
+@media (prefers-reduced-motion: reduce) {
+  .cg-toggle-btn,
+  .cg-btn-primary,
+  .cg-btn-outline,
+  .cg-field,
+  .cg-xp-box { transition: none !important; }
+  .cg-xp-box.is-pulse::after,
+  .cg-skel-block::after { animation: none !important; }
+}

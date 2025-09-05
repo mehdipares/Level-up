@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { sequelize, Sequelize, User, UserGoal, GoalTemplate, UserGoalCompletion, UserPriority } = require('../models');
 const { Op } = Sequelize;
-const { progressFromTotalXp } = require('../utils/xp'); // ✅ AJOUT
+const { progressFromTotalXp } = require('../utils/xp');
 
 /* ------------------------- Helpers cadence & périodes ------------------------- */
 
@@ -13,7 +13,7 @@ function overridesFromCadence(cadence) {
     return {
       frequency_type_override: 'daily',
       frequency_interval_override: 1,
-      week_start_override: null,  // inutile en daily
+      week_start_override: null,
       max_per_period_override: 1,
     };
   }
@@ -21,50 +21,71 @@ function overridesFromCadence(cadence) {
     return {
       frequency_type_override: 'weekly',
       frequency_interval_override: 1,
-      week_start_override: 1,     // lundi
+      week_start_override: 1, // lundi
       max_per_period_override: 1,
     };
   }
-  return null; // invalide
+  return null;
 }
 
-// helpers période
+// dates utilitaires
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
-const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
+const addDays    = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const addMonths  = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 
+/**
+ * Fenêtre courante selon la cadence effective.
+ * daily  -> [aujourd'hui 00:00, demain 00:00)
+ * weekly -> [début de semaine, +7j) (weekStart: 1=lundi par défaut)
+ * monthly-> [1er du mois, +n mois)
+ * once   -> fenêtre “ouverte”
+ */
 function getPeriodBounds(now, type, interval = 1, weekStart = 1) {
   const today = startOfDay(now);
-  if (type === 'daily')   return { start: today, end: addDays(today, interval) };
+
+  if (type === 'daily') {
+    return { start: today, end: addDays(today, Math.max(1, interval)) };
+  }
+
   if (type === 'weekly') {
-    const jsWeekday = today.getDay();             // 0=dim..6=sam
-    const mappedStart = weekStart % 7;            // 0..6
-    const weekdayMon0 = (jsWeekday + 6) % 7;      // 0=lun..6=dim
-    const startOffset = (weekdayMon0 - ((mappedStart + 6) % 7) + 7) % 7;
+    // now.getDay(): 0=dim..6=sam
+    // on mappe pour avoir 0=lundi..6=dim et calculer le décalage proprement
+    const jsWeekday   = today.getDay();         // 0..6 (dim..sam)
+    const weekdayMon0 = (jsWeekday + 6) % 7;    // 0..6 (lun..dim)
+    const startMon0   = ((weekStart % 7) + 6) % 7; // 0..6 (lun..dim)
+    const startOffset = (weekdayMon0 - startMon0 + 7) % 7;
     const start = addDays(today, -startOffset);
-    const end = addDays(start, 7 * Math.max(1, interval));
+    const weeks = Math.max(1, interval);
+    const end = addDays(start, 7 * weeks);
     return { start, end };
   }
+
   if (type === 'monthly') {
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    const end = addMonths(start, Math.max(1, interval));
+    const end   = addMonths(start, Math.max(1, interval));
     return { start, end };
   }
-  if (type === 'once') return { start: new Date(1970, 0, 1), end: new Date(9999, 11, 31) };
+
+  if (type === 'once') {
+    return { start: new Date(1970, 0, 1), end: new Date(9999, 11, 31) };
+  }
+
+  // fallback
   return { start: today, end: addDays(today, 1) };
 }
 
+/** Multiplieur d’XP en fonction des priorités utilisateur. */
 async function getXpMultiplier(userId, categoryId) {
-  const prefs = await UserPriority.findAll({ where: { user_id: userId }, order: [['score','DESC']] });
+  const prefs = await UserPriority.findAll({ where: { user_id: userId }, order: [['score', 'DESC']] });
   if (!prefs || !prefs.length) return 1.0;
-  const top = prefs[0]?.category_id;
+  const top    = prefs[0]?.category_id;
   const second = prefs[1]?.category_id;
-  if (Number(categoryId) === Number(top)) return 1.5;
+  if (Number(categoryId) === Number(top))    return 1.5;
   if (Number(categoryId) === Number(second)) return 1.25;
   return 1.0;
 }
 
-/* ------------------------- GET user goals (avec statut & cadence effective) ------------------------- */
+/* ------------------------- GET user goals (lazy rollover) ------------------------- */
 // GET /users/:id/user-goals?status=active|archived|all
 router.get('/:id/user-goals', async (req, res) => {
   const userId = Number(req.params.id);
@@ -72,67 +93,70 @@ router.get('/:id/user-goals', async (req, res) => {
 
   try {
     const where = { user_id: userId };
-    if (status === 'active')   where.status = 'active';
+    if (status === 'active')     where.status = 'active';
     else if (status === 'archived') where.status = 'archived';
-    // 'all' -> pas de filtre status
 
     const rows = await UserGoal.findAll({
       where,
       include: [{ model: GoalTemplate, as: 'GoalTemplate' }],
-      order: [['id', 'ASC']]
+      order: [['id', 'ASC']],
     });
 
     const now = new Date();
 
-    const payload = await Promise.all(rows.map(async (r) => {
-      const gt = r.GoalTemplate;
+    const payload = await Promise.all(
+      rows.map(async (r) => {
+        const gt = r.GoalTemplate;
 
-      // cadence EFFECTIVE (override user sinon défaut template)
-      const effType     = r.frequency_type_override     || gt.frequency_type;
-      const effInterval = r.frequency_interval_override ?? gt.frequency_interval;
-      const effWeek     = r.week_start_override         ?? gt.week_start;
-      const effMax      = r.max_per_period_override     ?? gt.max_per_period;
+        // cadence effective = override utilisateur sinon valeur template
+        const effType     = r.frequency_type_override     || gt.frequency_type;
+        const effInterval = r.frequency_interval_override ?? gt.frequency_interval;
+        const effWeek     = r.week_start_override         ?? gt.week_start;
+        const effMax      = r.max_per_period_override     ?? gt.max_per_period;
 
-      const { start, end } = getPeriodBounds(now, effType, effInterval, effWeek);
+        // LAZY ROLLOVER : on recalcule la fenêtre courante à la lecture
+        const { start, end } = getPeriodBounds(now, effType, effInterval, effWeek);
 
-      const count = await UserGoalCompletion.count({
-        where: { user_goal_id: r.id, completed_at: { [Op.gte]: start, [Op.lt]: end } }
-      });
+        // # de complétions dans CETTE fenêtre → “reset” implicite chaque matin / semaine
+        const count = await UserGoalCompletion.count({
+          where: { user_goal_id: r.id, completed_at: { [Op.gte]: start, [Op.lt]: end } },
+        });
 
-      return {
-        id: r.id,
-        user_id: r.user_id,
-        status: r.status,
+        return {
+          id: r.id,
+          user_id: r.user_id,
+          status: r.status,
 
-        // infos template
-        template_id: gt.id,
-        title: gt.title,
-        category_id: gt.category_id,
-        base_xp: gt.base_xp,
+          // infos template
+          template_id: gt.id,
+          title: gt.title,
+          category_id: gt.category_id,
+          base_xp: gt.base_xp,
 
-        // overrides stockés sur l'obj perso (pour debug/gestion)
-        frequency_type_override: r.frequency_type_override,
-        frequency_interval_override: r.frequency_interval_override,
-        week_start_override: r.week_start_override,
-        max_per_period_override: r.max_per_period_override,
+          // overrides stockés
+          frequency_type_override: r.frequency_type_override,
+          frequency_interval_override: r.frequency_interval_override,
+          week_start_override: r.week_start_override,
+          max_per_period_override: r.max_per_period_override,
 
-        // effectif appliqué
-        effective_frequency_type: effType,
-        effective_frequency_interval: effInterval,
-        effective_week_start: effWeek,
-        effective_max_per_period: effMax,
+          // effectif appliqué
+          effective_frequency_type: effType,
+          effective_frequency_interval: effInterval,
+          effective_week_start: effWeek,
+          effective_max_per_period: effMax,
 
-        // badge simple pour l'UI
-        cadence: effType === 'weekly' ? 'weekly' : 'daily',
+          // badge simple pour l'UI
+          cadence: effType === 'weekly' ? 'weekly' : (effType === 'daily' ? 'daily' : effType),
 
-        // suivi période
-        last_completed_at: r.last_completed_at,
-        completions_in_period: count,
-        can_complete: count < effMax,
-        period_start: start,
-        period_end: end
-      };
-    }));
+          // suivi période (calculé)
+          last_completed_at: r.last_completed_at,
+          completions_in_period: count,
+          can_complete: count < effMax,
+          period_start: start,
+          period_end: end,
+        };
+      })
+    );
 
     res.json(payload);
   } catch (e) {
@@ -141,7 +165,7 @@ router.get('/:id/user-goals', async (req, res) => {
   }
 });
 
-/* ------------------------- POST add user goal (cadence REQUISE + réactivation) ------------------------- */
+/* ------------------------- POST add user goal ------------------------- */
 // POST /users/:id/user-goals { template_id, cadence: 'daily'|'weekly' }
 router.post('/:id/user-goals', async (req, res) => {
   try {
@@ -156,46 +180,27 @@ router.post('/:id/user-goals', async (req, res) => {
       return res.status(400).json({ error: 'cadence requise (daily|weekly)' });
     }
 
-    // Vérifier que le template existe
     const tpl = await GoalTemplate.findByPk(template_id);
-    if (!tpl) {
-      return res.status(404).json({ error: 'Template introuvable' });
-    }
+    if (!tpl) return res.status(404).json({ error: 'Template introuvable' });
 
     const ov = overridesFromCadence(cadence);
-    if (!ov) {
-      return res.status(400).json({ error: 'cadence invalide (daily|weekly)' });
-    }
+    if (!ov) return res.status(400).json({ error: 'cadence invalide (daily|weekly)' });
 
-    // Chercher un lien existant (actif ou archivé)
     const existing = await UserGoal.findOne({ where: { user_id: userId, template_id } });
 
     if (existing) {
       if (existing.status === 'archived') {
-        // ✅ Réactiver + appliquer la cadence choisie
         existing.status = 'active';
         existing.frequency_type_override     = ov.frequency_type_override;
         existing.frequency_interval_override = ov.frequency_interval_override;
         existing.week_start_override         = ov.week_start_override;
         existing.max_per_period_override     = ov.max_per_period_override;
         await existing.save();
-        return res.status(200).json({
-          id: existing.id,
-          created: false,
-          reactivated: true,
-          cadence
-        });
+        return res.status(200).json({ id: existing.id, created: false, reactivated: true, cadence });
       }
-      // Déjà actif → on ne crée pas de doublon
-      return res.status(200).json({
-        id: existing.id,
-        created: false,
-        reactivated: false,
-        message: 'Déjà présent et actif'
-      });
+      return res.status(200).json({ id: existing.id, created: false, reactivated: false, message: 'Déjà présent et actif' });
     }
 
-    // ✅ Création du lien user↔template avec overrides + status=active
     const created = await UserGoal.create({
       user_id: userId,
       template_id,
@@ -213,7 +218,7 @@ router.post('/:id/user-goals', async (req, res) => {
   }
 });
 
-/* ------------------------- PATCH complete (utilise cadence effective) ------------------------- */
+/* ------------------------- PATCH complete ------------------------- */
 // PATCH /users/:userId/user-goals/:userGoalId/complete
 router.patch('/:userId/user-goals/:userGoalId/complete', async (req, res) => {
   const { userId, userGoalId } = req.params;
@@ -231,7 +236,6 @@ router.patch('/:userId/user-goals/:userGoalId/complete', async (req, res) => {
 
     const gt = userGoal.GoalTemplate;
 
-    // cadence effective (override → sinon template)
     const effType     = userGoal.frequency_type_override     || gt.frequency_type;
     const effInterval = userGoal.frequency_interval_override ?? gt.frequency_interval;
     const effWeek     = userGoal.week_start_override         ?? gt.week_start;
@@ -263,10 +267,9 @@ router.patch('/:userId/user-goals/:userGoalId/complete', async (req, res) => {
 
     await userGoal.update({ last_completed_at: now }, { transaction: t });
 
-    // ✅ MAJ XP & LEVEL via l'algo centralisé
     const user = await User.findByPk(userId, { transaction: t, lock: t.LOCK.UPDATE });
     const newXp = (user.xp || 0) + xpAwarded;
-    const prog = progressFromTotalXp(newXp); // { level, prevTotal, nextTotal, current, span, percent }
+    const prog = progressFromTotalXp(newXp);
     await user.update({ xp: newXp, level: prog.level }, { transaction: t });
 
     await t.commit();
@@ -276,7 +279,7 @@ router.patch('/:userId/user-goals/:userGoalId/complete', async (req, res) => {
       newXp,
       newLevel: prog.level,
       nextEligibleAt: end,
-      xp_progress: prog, // ← le front lit ça pour la barre
+      xp_progress: prog,
     });
   } catch (e) {
     await t.rollback();
@@ -285,7 +288,7 @@ router.patch('/:userId/user-goals/:userGoalId/complete', async (req, res) => {
   }
 });
 
-/* ------------------------- PATCH schedule (changer cadence) ------------------------- */
+/* ------------------------- PATCH schedule ------------------------- */
 // PATCH /users/:userId/user-goals/:userGoalId/schedule
 router.patch('/:userId/user-goals/:userGoalId/schedule', async (req, res) => {
   try {
@@ -317,13 +320,12 @@ router.patch('/:userId/user-goals/:userGoalId/schedule', async (req, res) => {
 
     const gt = ug.GoalTemplate;
     const effType     = ug.frequency_type_override     || gt.frequency_type;
-    const effInterval = ug.frequency_interval_override ?? gt.frequency_interval;
-    const effWeek     = ug.week_start_override         ?? gt.week_start;
-    const effMax      = ug.max_per_period_override     ?? gt.max_per_period;
+    const effInterval = ug.frequency_interval_override || gt.frequency_interval;
+    const effWeek     = ug.week_start_override         || gt.week_start;
+    const effMax      = ug.max_per_period_override     || gt.max_per_period;
 
     const now = new Date();
     const { start, end } = getPeriodBounds(now, effType, effInterval, effWeek);
-
     const count = await UserGoalCompletion.count({
       where: { user_goal_id: ug.id, completed_at: { [Op.gte]: start, [Op.lt]: end } }
     });
@@ -371,12 +373,11 @@ router.patch('/:userId/user-goals/:userGoalId/unarchive', async (req, res) => {
     if (!ug) return res.status(404).json({ error: 'UserGoal introuvable' });
 
     if (ug.status === 'active') {
-      // idempotent
       const gt = ug.GoalTemplate;
       const effType     = ug.frequency_type_override     || gt.frequency_type;
-      const effInterval = ug.frequency_interval_override ?? gt.frequency_interval;
-      const effWeek     = ug.week_start_override         ?? gt.week_start;
-      const effMax      = ug.max_per_period_override     ?? gt.max_per_period;
+      const effInterval = ug.frequency_interval_override || gt.frequency_interval;
+      const effWeek     = ug.week_start_override         || gt.week_start;
+      const effMax      = ug.max_per_period_override     || gt.max_per_period;
 
       const now = new Date();
       const { start, end } = getPeriodBounds(now, effType, effInterval, effWeek);
@@ -396,15 +397,14 @@ router.patch('/:userId/user-goals/:userGoalId/unarchive', async (req, res) => {
       });
     }
 
-    // Réactivation simple (ne touche pas aux overrides)
     ug.status = 'active';
     await ug.save();
 
     const gt = ug.GoalTemplate;
     const effType     = ug.frequency_type_override     || gt.frequency_type;
-    const effInterval = ug.frequency_interval_override ?? gt.frequency_interval;
-    const effWeek     = ug.week_start_override         ?? gt.week_start;
-    const effMax      = ug.max_per_period_override     ?? gt.max_per_period;
+    const effInterval = ug.frequency_interval_override || gt.frequency_interval;
+    const effWeek     = ug.week_start_override         || gt.week_start;
+    const effMax      = ug.max_per_period_override     || gt.max_per_period;
 
     const now = new Date();
     const { start, end } = getPeriodBounds(now, effType, effInterval, effWeek);

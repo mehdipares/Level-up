@@ -31,8 +31,8 @@ app.use('/goal-templates', maybeAuth, goalTemplatesRouter);
 app.use('/onboarding',     onboardingRouter);
 
 // On monte *les deux* routers sous /users (ils gèrent des sous-chemins différents)
-app.use('/users', usersRouter);
-app.use('/users', userGoalsRouter);
+app.use('/users', maybeAuth, usersRouter);
+app.use('/users', maybeAuth, userGoalsRouter);
 
 // Ping simple
 app.get('/', (req, res) => {

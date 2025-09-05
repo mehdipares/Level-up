@@ -7,6 +7,9 @@ import MyGoals from "./pages/MyGoals";
 import CreateGoal from "./pages/CreateGoal";
 import GoalChoice from "./pages/GoalChoice";
 import Onboarding from "./pages/Onboarding";
+import User from "./pages/user";
+import Priorities from "./pages/Priorities";
+import Legal from './pages/Legal';
 
 // ✅ importe ton guard (là où tu l’as créé)
 import RequireOnboarding from './components/RequireOnboarding';
@@ -28,6 +31,10 @@ function App() {
           <Route path="/MyGoals" element={<MyGoals />} />
           <Route path="/CreateGoal" element={<CreateGoal />} />
           <Route path="/GoalChoice" element={<GoalChoice />} />
+          <Route path="/User" element={<User />} />
+          <Route path="/Priorities" element={<Priorities />} />
+          <Route path="/Legal" element={<Legal />} />
+          
         </Route>
 
         {/* Redirection par défaut */}
