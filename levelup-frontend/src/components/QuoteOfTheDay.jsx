@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import './QuoteOfTheDay.css';
 import API_BASE from "../config/api";
 
-import { useEffect, useState } from "react";
 import API_BASE from "../config/api"; // 👈 ajoute cet import
 
 export default function QuoteOfTheDay() {
