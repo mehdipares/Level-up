@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../components/Navbar';
 import XPBar from '../components/XPBar';
 import { getCurrentUserId } from '../utils/auth';
+import API_BASE from '../config/api'; // 👈 base URL
 
 function authHeaders() {
   const h = new Headers({ Accept: 'application/json', 'Content-Type': 'application/json' });
@@ -21,12 +22,14 @@ export default function Profile() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
 
-  // Prefs locales (pas besoin de back pour commencer)
-  const [theme, setTheme] = useState(() => localStorage.getItem('pref:theme') || 'system'); // light|dark|system
-  const [defaultCadence, setDefaultCadence] = useState(() => localStorage.getItem('pref:cadence') || 'daily'); // daily|weekly
+  // Prefs locales
+  const [theme, setTheme] = useState(() => localStorage.getItem('pref:theme') || 'system');
+  const [defaultCadence, setDefaultCadence] = useState(() => localStorage.getItem('pref:cadence') || 'daily');
 
+  // ✅ Préfixe automatiquement avec API_BASE si l’URL est relative
   const fetchJSON = async (url, init) => {
-    const res = await fetch(url, { ...init, headers: authHeaders() });
+    const full = url.startsWith('http') ? url : `${API_BASE}${url}`;
+    const res = await fetch(full, { ...init, headers: authHeaders() });
     if (!res.ok) {
       let message = `HTTP ${res.status}`;
       try { message = (await res.json())?.error || (await res.text()) || message; } catch {}
@@ -231,10 +234,6 @@ export default function Profile() {
               <button className="btn btn-outline-danger" onClick={logout} style={{ borderRadius: 12 }}>
                 Se déconnecter
               </button>
-              {/* Si tu ajoutes une route de changement de mot de passe :
-              <button className="btn btn-outline-secondary" onClick={openPwdModal} style={{ borderRadius: 12 }}>
-                Changer de mot de passe
-              </button> */}
             </div>
           </div>
         </div>

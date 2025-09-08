@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getCurrentUserId } from '../../utils/auth';
+import API_BASE from '../../config/api'; // 👈 base URL API
 
 /** Headers with Accept + Authorization (if token) */
 function authHeaders() {
@@ -27,16 +28,13 @@ function SkeletonRow() {
 }
 
 /**
- * Card "Mes priorités" (violet, minimal, responsive)
+ * Card "Mes priorités"
  * - GET /users/:id/priorities  +  GET /users/:id
- * - Affiche top 3 catégories avec % + barre
- * - Si onb. non fait → CTA "Compléter mon questionnaire"
- * - Sinon → CTA "Gérer mes priorités" (vers /Priorities par défaut)
  */
 export default function UserPrioritiesCard({
   userId: userIdProp,
   className = '',
-  manageTo = '/Priorities',   // ⬅️ défaut corrigé ici
+  manageTo = '/Priorities',
   max = 3
 }) {
   const userId = useMemo(() => userIdProp ?? getCurrentUserId() ?? null, [userIdProp]);
@@ -56,13 +54,13 @@ export default function UserPrioritiesCard({
     setError(null);
     try {
       const [priRes, userRes] = await Promise.all([
-        fetch(`/users/${userId}/priorities`, { headers: authHeaders(), cache: 'no-store' }),
-        fetch(`/users/${userId}`, { headers: authHeaders(), cache: 'no-store' }),
+        fetch(`${API_BASE}/users/${userId}/priorities`, { headers: authHeaders(), cache: 'no-store' }), // 👈
+        fetch(`${API_BASE}/users/${userId}`,            { headers: authHeaders(), cache: 'no-store' })  // 👈
       ]);
-      if (!priRes.ok) throw new Error(await priRes.text());
+      if (!priRes.ok)  throw new Error(await priRes.text());
       if (!userRes.ok) throw new Error(await userRes.text());
 
-      const priData = await priRes.json();
+      const priData  = await priRes.json();
       const userData = await userRes.json();
 
       const list = Array.isArray(priData) ? priData : (priData.rows || priData.data || []);
@@ -149,10 +147,7 @@ export default function UserPrioritiesCard({
           <ul className="list-unstyled d-flex flex-column gap-3 mb-0">
             {top.map((row, idx) => {
               const pct = Math.max(0, Math.min(100, Math.round(row.score)));
-              const bonus =
-                idx === 0 ? '+50% XP' :
-                idx === 1 ? '+25% XP' :
-                '—';
+              const bonus = idx === 0 ? '+50% XP' : idx === 1 ? '+25% XP' : '—';
 
               const badgeStyle = {
                 border: '1px solid rgba(255,255,255,.7)',

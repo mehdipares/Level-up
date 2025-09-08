@@ -1,6 +1,7 @@
 // src/components/XPBar.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCurrentUserId } from '../utils/auth';
+import API_BASE from '../config/api'; // 👈 import base URL
 import '../styles/XP/xp-bar.css'; // garde ton CSS actuel
 
 function authHeaders() {
@@ -72,9 +73,7 @@ export default function XPBar({ userId: userIdProp, className = '' }) {
     if (leveledUp || nextPercent < uiPercent) {
       // Level up / rollover : A) vers 100%, B) reset → 0, C) vers le nouveau %
       tweenTo(uiPercent, 100, 500, () => {
-        // reset instant sans CSS transition (on anime côté JS)
         setUiPercent(0);
-        // micro délai pour laisse React appliquer 0%, puis on repart
         setTimeout(() => tweenTo(0, nextPercent, 650), 16);
       });
     } else {
@@ -92,7 +91,10 @@ export default function XPBar({ userId: userIdProp, className = '' }) {
     }
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const res = await fetch(`/users/${userId}`, { headers: authHeaders(), cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/users/${userId}`, { // 👈 prefix API
+        headers: authHeaders(),
+        cache: 'no-store'
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const u = await res.json();
       applyPayload(u);

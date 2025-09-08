@@ -3,19 +3,12 @@
 // Page d’onboarding : pose ~15 questions (échelle 1..5), calcule les priorités,
 // et empêche l’accès si l’utilisateur a déjà complété son onboarding.
 // -----------------------------------------------------------------------------
-//
-// Points clés :
-// - Guard d’accès : on lit /users/:id, si onboarding_done = 1 → redirection Dashboard
-// - Chargement des questions ensuite seulement (évite un flash avant redirection)
-// - Envoi des réponses à /onboarding/answers (le back met onboarding_done = 1)
-// - Après succès, on affiche le résultat et un bouton "Aller au Dashboard"
-// - Tous les fetch incluent l’Authorization si présent en localStorage
-// -----------------------------------------------------------------------------
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { getCurrentUserId } from '../utils/auth';
+import API_BASE from '../config/api'; // 👈 base URL API
 
 // -----------------------------------------------------------------------------
 // Utilitaire d’en-têtes HTTP : ajoute "Authorization: Bearer ..." si on a un token
@@ -31,8 +24,6 @@ function authHeaders(json = false) {
 
 // -----------------------------------------------------------------------------
 // Composant "Likert" : l’échelle 1..5 pour chaque question.
-// value = nombre sélectionné (1..5), onChange(v) = callback quand on clique.
-// name sert à grouper les radios (un seul choix possible).
 // -----------------------------------------------------------------------------
 function Likert({ value, onChange, name }) {
   return (
@@ -44,7 +35,7 @@ function Likert({ value, onChange, name }) {
             name={name}
             className="form-check-input"
             checked={value === v}
-            onChange={() => onChange(v)} // on remonte la valeur choisie
+            onChange={() => onChange(v)}
           />
           <small className="text-muted fw-semibold">{v}</small>
         </label>
@@ -57,92 +48,67 @@ function Likert({ value, onChange, name }) {
 // Page principale
 // -----------------------------------------------------------------------------
 export default function Onboarding() {
-  // Navigation programmatique (pour rediriger vers le Dashboard)
   const navigate = useNavigate();
-
-  // On récupère l’ID utilisateur depuis le localStorage/JWT utilitaire
-  // useMemo pour figer la valeur à l’init (pas besoin de recalculer à chaque render)
   const userId = useMemo(() => getCurrentUserId() ?? null, []);
-
-  // Langue courante (ici en dur, mais pourrait venir du profil)
   const [lang] = useState('fr');
 
-  // États de la page
-  const [loading, setLoading] = useState(true);     // vrai pendant le guard + fetch questions
-  const [err, setErr] = useState(null);             // message d’erreur à afficher
-  const [questions, setQuestions] = useState([]);   // tableau des questions actives
+  const [loading, setLoading]   = useState(true);
+  const [err, setErr]           = useState(null);
+  const [questions, setQuestions] = useState([]);
 
-  // Navigation "une question à la fois"
-  const [idx, setIdx] = useState(0);                // index de la question courante (0..N-1)
-  const [answers, setAnswers] = useState({});       // dictionnaire { [question_id]: 1..5 }
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState({});
 
-  // Soumission & résultat
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState(null);       // payload renvoyé par le back (priorities, etc.)
+  const [result, setResult] = useState(null);
 
   // ---------------------------------------------------------------------------
-  // Chargement des questions depuis le backend.
-  // On appelle ce fetch SEULEMENT après le guard (voir useEffect plus bas).
-  // On passe aussi user_id côté query string (permet au back de refuser si besoin).
-  // Si le back répond 409 (déjà complété), on redirige directement.
+  // Chargement des questions (appelé après le guard)
   // ---------------------------------------------------------------------------
   const fetchQuestions = async () => {
     setErr(null);
-    const url = `/onboarding/questions?lang=${lang}&user_id=${userId}`;
+    const url = `${API_BASE}/onboarding/questions?lang=${lang}&user_id=${userId}`; // 👈
     const res = await fetch(url, { headers: authHeaders() });
 
     if (res.status === 409) {
-      // Le backend te dit "déjà onboardé" → on renvoie au Dashboard.
       navigate('/DashBoard', { replace: true });
       return;
     }
-    if (!res.ok) {
-      // Lève une erreur lisible (texte brut si JSON non parseable)
-      throw new Error((await res.text()) || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
 
     const data = await res.json();
     const items = Array.isArray(data.items) ? data.items : [];
     setQuestions(items);
-    setIdx(0); // on place l’index au début
+    setIdx(0);
   };
 
   // ---------------------------------------------------------------------------
-  // Guard d’accès + initialisation :
-  // 1) On vérifie d’abord l’utilisateur (/users/:id) pour lire onboarding_done.
-  //    - s’il est TRUE/1 → redirection immédiate vers /DashBoard
-  // 2) Sinon, on charge la liste des questions actives.
-  //
-  // Remarque: on ne met pas fetchQuestions dans les deps pour éviter le warning.
-  // On séquence volontairement : le guard d’accès doit toujours s’exécuter en premier.
+  // Guard d’accès + init (vérifie /users/:id puis charge les questions)
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    let alive = true; // protection si le composant est démonté pendant les fetch
+    let alive = true;
 
     (async () => {
       if (!userId) {
-        // Si on n’a pas d’ID, on ne peut pas faire l’onboarding → invite à se connecter
         setErr('Utilisateur non identifié');
         setLoading(false);
         return;
       }
 
       try {
-        // 1) Guard : /users/:id pour savoir si l’onboarding est déjà fait
-        const resUser = await fetch(`/users/${userId}`, {
+        // Guard
+        const resUser = await fetch(`${API_BASE}/users/${userId}`, { // 👈
           headers: authHeaders(),
-          cache: 'no-store', // on veut une info fraîche
+          cache: 'no-store',
         });
         if (!resUser.ok) throw new Error((await resUser.text()) || `HTTP ${resUser.status}`);
         const u = await resUser.json();
 
-        // Si déjà fait → redirection (et on ne charge PAS les questions)
         if (alive && (u.onboarding_done === 1 || u.onboarding_done === true)) {
           navigate('/DashBoard', { replace: true });
           return;
         }
 
-        // 2) Charger les questions si pas encore onboardé
         await fetchQuestions();
       } catch (e) {
         if (alive) setErr(e.message || 'Erreur de chargement');
@@ -153,28 +119,21 @@ export default function Onboarding() {
 
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, lang]); // on relance si l’ID ou la langue change
+  }, [userId, lang]);
 
   // ---------------------------------------------------------------------------
-  // Derivés d’affichage (progression, question en cours, etc.)
+  // Dérivés d’affichage
   // ---------------------------------------------------------------------------
-  const total = questions.length;                           // nombre total de questions
-  const current = questions[idx] || null;                   // question courante (ou null si vide)
-  const answeredCount = Object.keys(answers).length;        // nombre de réponses données
-  const percent = total ? Math.round(((idx + 1) / total) * 100) : 0; // progression visuelle
+  const total = questions.length;
+  const current = questions[idx] || null;
+  const percent = total ? Math.round(((idx + 1) / total) * 100) : 0;
 
-  // Enregistrer une réponse pour une question donnée
-  const setAnswer = (qid, v) => {
-    setAnswers(prev => ({ ...prev, [qid]: v }));
-  };
+  const setAnswer = (qid, v) => setAnswers(prev => ({ ...prev, [qid]: v }));
 
   // ---------------------------------------------------------------------------
-  // Soumission : on a besoin d’au moins 12 réponses valides.
-  // On envoie au back, qui calcule les priorités, met onboarding_done = 1,
-  // et renvoie la liste triée (avec rank & score).
+  // Soumission du questionnaire
   // ---------------------------------------------------------------------------
   const handleSubmit = async () => {
-    // On aplatit le dictionnaire => [{question_id, value}, ...]
     const flat = Object.entries(answers)
       .map(([qid, val]) => ({ question_id: Number(qid), value: Number(val) }))
       .filter(a => a.question_id > 0 && a.value >= 1 && a.value <= 5);
@@ -185,22 +144,20 @@ export default function Onboarding() {
     setSubmitting(true);
     setErr(null);
     try {
-      const res = await fetch('/onboarding/answers', {
+      const res = await fetch(`${API_BASE}/onboarding/answers`, { // 👈
         method: 'POST',
         headers: authHeaders(true),
         body: JSON.stringify({ user_id: Number(userId), language: lang, answers: flat })
       });
 
-      // Double sécurité : si le back répond 409 (déjà complété), on redirige.
       if (res.status === 409) {
         navigate('/DashBoard', { replace: true });
         return;
       }
       if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
 
-      const payload = await res.json();
-      // payload attendu : { onboarding_done: true, user_id, priorities: [...] }
-      setResult(payload); // déclenche l’affichage du récap
+      const payload = await res.json(); // { onboarding_done, user_id, priorities: [...] }
+      setResult(payload);
     } catch (e) {
       setErr(e.message || 'Erreur lors de la soumission');
     } finally {
@@ -209,12 +166,8 @@ export default function Onboarding() {
   };
 
   // ---------------------------------------------------------------------------
-  // Rendu : 3 états possibles
-  // - loading : on affiche un loader
-  // - result   : on affiche le récap des priorités + bouton pour partir au Dashboard
-  // - sinon    : on affiche l’UI "1 question à la fois"
+  // Rendus
   // ---------------------------------------------------------------------------
-
   if (loading) {
     return (
       <div className="DashBoard">
@@ -234,7 +187,6 @@ export default function Onboarding() {
         <Navbar />
         <div className="container py-4">
           <h2>Tes priorités 💡</h2>
-          {/* Affiche un éventuel message d’erreur (rare) même après résultat */}
           {err && <div className="alert alert-danger mt-2">{String(err)}</div>}
           <p className="text-muted">Catégorie #1 : +50% d’XP · Catégorie #2 : +25%.</p>
 
@@ -253,9 +205,7 @@ export default function Onboarding() {
           </ul>
 
           <div className="mt-4 d-flex gap-2">
-            {/* IMPORTANT : utiliser la même casse/orthographe que votre route App.js */}
             <Link className="btn btn-primary" to="/DashBoard">Aller au Dashboard</Link>
-            {/* Permet de revenir aux réponses pour les modifier avant envoi (UX optionnelle) */}
             <button className="btn btn-outline-secondary" onClick={() => setResult(null)}>
               Revoir mes réponses
             </button>
@@ -265,14 +215,13 @@ export default function Onboarding() {
     );
   }
 
-  // Vue principale : 1 question par écran, navigation "précédent/suivant"
+  // Vue principale : 1 question par écran
   return (
     <div className="DashBoard">
       <Navbar />
       <div className="container py-4">
         <h2>Onboarding</h2>
 
-        {/* Affichage d’une erreur éventuelle (ex : réseau) */}
         {err && <div className="alert alert-danger mt-2">{String(err)}</div>}
 
         <p className="text-muted mb-3">
@@ -280,7 +229,6 @@ export default function Onboarding() {
           Il faut répondre à <b>au moins 12</b> questions sur {total}.
         </p>
 
-        {/* Barre de progression (basée sur l’index courant) */}
         <div className="d-flex align-items-center gap-3 mb-3">
           <div className="flex-grow-1">
             <div className="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100">
@@ -292,23 +240,21 @@ export default function Onboarding() {
           </small>
         </div>
 
-        {/* Carte de la question courante */}
         {current ? (
           <div className="p-4 border rounded bg-white">
             <div className="mb-3" style={{ fontWeight: 600 }}>
               {current.question}
             </div>
             <Likert
-              name={`q-${current.id}`}               // groupe radio unique
-              value={answers[current.id] ?? 0}        // valeur sélectionnée (0 = pas encore répondu)
-              onChange={(v) => setAnswer(current.id, v)} // enregistre la réponse
+              name={`q-${current.id}`}
+              value={answers[current.id] ?? 0}
+              onChange={(v) => setAnswer(current.id, v)}
             />
           </div>
         ) : (
           <div className="alert alert-warning">Aucune question active pour le moment.</div>
         )}
 
-        {/* Boutons de navigation et soumission */}
         <div className="d-flex justify-content-between mt-3">
           <button
             className="btn btn-outline-secondary"
@@ -319,16 +265,13 @@ export default function Onboarding() {
           </button>
 
           {idx < total - 1 ? (
-            // Tant qu’on n’est pas à la fin : "Passer" et "Suivant"
             <div className="d-flex gap-2">
-              {/* "Passer" : autorise d’avancer sans répondre (si tu veux forcer la réponse, supprime ce bouton) */}
               <button
                 className="btn btn-outline-secondary"
                 onClick={() => setIdx(i => Math.min(total - 1, i + 1))}
               >
                 Passer →
               </button>
-              {/* "Suivant" : on demande une réponse pour continuer */}
               <button
                 className="btn btn-primary"
                 onClick={() => setIdx(i => Math.min(total - 1, i + 1))}
@@ -339,7 +282,6 @@ export default function Onboarding() {
               </button>
             </div>
           ) : (
-            // Dernière question : bouton de soumission
             <button
               className="btn btn-success"
               disabled={submitting || Object.keys(answers).length < 12}

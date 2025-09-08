@@ -1,6 +1,7 @@
 // src/hooks/useOnboardingGuard.js
 import { useEffect, useMemo, useState } from 'react';
 import { getCurrentUserId } from '../utils/auth';
+import API_BASE from '../config/api'; // 👈 import base URL
 
 function authHeaders() {
   const h = new Headers({ Accept: 'application/json' });
@@ -27,10 +28,12 @@ export default function useOnboardingGuard() {
         return;
       }
       try {
-        const res = await fetch(`/users/${userId}`, { headers: authHeaders(), cache: 'no-store' });
+        const res = await fetch(`${API_BASE}/users/${userId}`, { // 👈 prefix API
+          headers: authHeaders(),
+          cache: 'no-store'
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const u = await res.json();
-        // On tolère les anciens back qui ne renvoient pas onboarding_done → on le considère "false" (pour forcer l’onboarding)
         const onboardingDone = typeof u.onboarding_done === 'boolean' ? u.onboarding_done : false;
         if (alive) setState({ loading: false, authenticated: true, onboardingDone, error: null });
       } catch (e) {

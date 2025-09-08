@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom'; // Pour redirection
 import Logo from '../img/logo.png';
+import API_BASE from "../config/api";
 
 
 function RegisterForm() {
@@ -16,7 +17,7 @@ function RegisterForm() {
     setMessage('');
 
     try {
-      await axios.post('http://localhost:3000/auth/register', {
+      await axios.post(`${API_BASE}/auth/register`, {
         username,
         email,
         password
@@ -30,6 +31,7 @@ function RegisterForm() {
       console.error('Erreur inscription :', error.response?.data || error.message);
       setMessage('❌ ' + (error.response?.data?.error || 'Erreur lors de l’inscription'));
     }
+
   };
 
   return (

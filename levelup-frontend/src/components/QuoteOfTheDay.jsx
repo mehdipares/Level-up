@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import './QuoteOfTheDay.css';
+import API_BASE from "../config/api";
+
+import { useEffect, useState } from "react";
+import API_BASE from "../config/api"; // 👈 ajoute cet import
 
 export default function QuoteOfTheDay() {
   const [data, setData] = useState({ loading: true, error: null, quote: null });
@@ -7,7 +11,7 @@ export default function QuoteOfTheDay() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch('/quotes/today?lang=fr'); // proxy CRA -> http://localhost:3000
+        const res = await fetch(`${API_BASE}/quotes/today?lang=fr`); // 👈 utilise API_BASE
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();      // { text, author, language }
         setData({ loading: false, error: null, quote: json });

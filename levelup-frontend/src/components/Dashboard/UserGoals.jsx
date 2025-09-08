@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getCurrentUserId } from '../../utils/auth';
+import API_BASE from '../../config/api'; // 👈 base URL API (local/prod)
 import '../../styles/Dashboard/goal-cards.css'; // ✅ styles dashboard
 
 function authHeaders() {
@@ -29,7 +30,10 @@ export default function UserGoals({ userId: userIdProp, className = '' }) {
     if (!userId) { setErr('Utilisateur non identifié'); setLoading(false); return; }
     setLoading(true); setErr(null);
     try {
-      const res = await fetch(`/users/${userId}/user-goals`, { headers: authHeaders(), cache: 'no-store' });
+      const res = await fetch(`${API_BASE}/users/${userId}/user-goals`, { // 👈
+        headers: authHeaders(),
+        cache: 'no-store'
+      });
       if (!res.ok) throw new Error(await res.text());
       const arr = await res.json();
       setRows(Array.isArray(arr) ? arr : (arr.rows || arr.data || []));
@@ -55,7 +59,10 @@ export default function UserGoals({ userId: userIdProp, className = '' }) {
     setDoneLocal(prev => new Set(prev).add(ugid));
 
     try {
-      const res = await fetch(`/users/${userId}/user-goals/${ugid}/complete`, { method: 'PATCH', headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/users/${userId}/user-goals/${ugid}/complete`, { // 👈
+        method: 'PATCH',
+        headers: authHeaders()
+      });
       if (!res.ok) throw new Error(await res.text());
       setConfirm(null);
 
@@ -77,7 +84,10 @@ export default function UserGoals({ userId: userIdProp, className = '' }) {
   const doArchive = async (ugid) => {
     setBusy(`arch-${ugid}`);
     try {
-      const res = await fetch(`/users/${userId}/user-goals/${ugid}/archive`, { method: 'PATCH', headers: authHeaders() });
+      const res = await fetch(`${API_BASE}/users/${userId}/user-goals/${ugid}/archive`, { // 👈
+        method: 'PATCH',
+        headers: authHeaders()
+      });
       if (!res.ok) throw new Error(await res.text());
       setConfirm(null);
 

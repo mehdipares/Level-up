@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getCurrentUserId } from '../../utils/auth';
+import API_BASE from '../../config/api'; // 👈 base URL API (local/prod)
 import '../../styles/CreateGoal/create-goal.css'; // ⬅️ nouveaux styles
 
 /** Headers JSON + token */
@@ -66,7 +67,7 @@ export default function CreateGoalForm() {
     (async () => {
       try {
         setLoadingCats(true);
-        const res = await fetch('/categories', { headers: authHeaders(), cache: 'no-store' });
+        const res = await fetch(`${API_BASE}/categories`, { headers: authHeaders(), cache: 'no-store' }); // 👈
         if (!res.ok) throw new Error(await res.text());
         const arr = await res.json();
         const list = Array.isArray(arr) ? arr : (arr.rows || arr.data || []);
@@ -96,7 +97,7 @@ export default function CreateGoalForm() {
       if (!userId) { setLoadingPrio(false); return; }
       try {
         setLoadingPrio(true);
-        const res = await fetch(`/users/${userId}/priorities`, { headers: authHeaders(), cache: 'no-store' });
+        const res = await fetch(`${API_BASE}/users/${userId}/priorities`, { headers: authHeaders(), cache: 'no-store' }); // 👈
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.rows || data.data || []);
@@ -180,7 +181,7 @@ export default function CreateGoalForm() {
         owner_user_id: Number(userId),
       };
 
-      const resTpl = await fetch('/goal-templates', {
+      const resTpl = await fetch(`${API_BASE}/goal-templates`, {  // 👈
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(tplBody),
@@ -191,7 +192,7 @@ export default function CreateGoalForm() {
       if (!tplId) throw new Error("Template créé, mais l'ID est introuvable.");
 
       // Lier à l'utilisateur
-      const resLink = await fetch(`/users/${userId}/user-goals`, {
+      const resLink = await fetch(`${API_BASE}/users/${userId}/user-goals`, { // 👈
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ template_id: tplId, cadence }),

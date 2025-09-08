@@ -9,6 +9,8 @@ import Logo from '../img/logo.png';
 
 import { useNavigate } from 'react-router-dom';
 
+import API_BASE from "../config/api";
+
 // Utilitaire: décoder le payload d'un JWT (base64url)
 function decodeJWT(token) {
   if (!token || typeof token !== 'string') return null;
@@ -40,8 +42,8 @@ function LoginForm() {
     try {
       // Envoi de la requête POST vers l'API backend pour tenter une connexion
       const res = await axios.post('http://localhost:3000/auth/login', {
-        email,      // Valeur entrée par l'utilisateur
-        password    // Valeur entrée par l'utilisateur
+        email,
+        password
       });
 
       // Récupération du token renvoyé par le backend

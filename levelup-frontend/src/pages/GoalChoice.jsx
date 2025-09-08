@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Navbar from '../components/Navbar';
 import { getCurrentUserId } from '../utils/auth';
+import API_BASE from '../config/api'; // 👈 base URL API (local/prod)
 
 import CatalogCard from '../components/GoalChoice/CatalogCard';
 import ManageCard from '../components/GoalChoice/ManageCard';
@@ -27,14 +28,16 @@ export default function GoalChoice() {
   const [mgmtBusy, setMgmtBusy] = useState(null);
   const [cadenceEdit, setCadenceEdit] = useState({}); // ✅ objet (pas null)
 
-  // ✅ fetchJSON avec token Authorization
+  // ✅ fetchJSON avec base URL + token Authorization
   const fetchJSON = async (url, init) => {
     const h = new Headers(init?.headers || {});
     h.set('Accept', 'application/json');
     const t = localStorage.getItem('token');
     if (t) h.set('Authorization', `Bearer ${t}`);
     if (init?.body && !h.has('Content-Type')) h.set('Content-Type', 'application/json');
-    const res = await fetch(url, { ...init, headers: h });
+
+    const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`; // 👈 préfixe auto
+    const res = await fetch(fullUrl, { ...init, headers: h });
     if (!res.ok) {
       let message = `HTTP ${res.status}`;
       try { message = (await res.json())?.error || (await res.text()) || message; } catch {}
