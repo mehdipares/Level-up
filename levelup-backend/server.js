@@ -10,17 +10,29 @@ const userGoalsRouter     = require('./routes/userGoals');      // ex: /users/:i
 const categoriesRouter    = require('./routes/categories');
 const authRouter          = require('./routes/auth');           // OK si déjà fonctionnel
 const quotesRouter        = require('./routes/quotes');
-const maybeAuth = require('./utils/maybeAuth');
+const maybeAuth           = require('./utils/maybeAuth');
 const goalTemplatesRouter = require('./routes/goalTemplates');
-const onboardingRouter   = require('./routes/onboarding');
+const onboardingRouter    = require('./routes/onboarding');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ✅ CORS : autoriser localhost et ton front Vercel
+const allowedOrigins = [
+  'http://localhost:3001',
+  'https://level-up-2n89-kdqchow56-dims-projects-645dd5d5.vercel.app'
+];
+
 app.use(cors({
-  origin: 'http://localhost:3001',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS bloqué pour : ' + origin));
+  },
   credentials: true
 }));
+
 app.use(express.json());
 
 // Mount des routes
