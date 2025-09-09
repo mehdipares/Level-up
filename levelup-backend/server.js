@@ -33,6 +33,14 @@ app.use(cors({
   credentials: true
 }));
 
+app.get('/db-test', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ status: 'ok', message: 'Connexion réussie ✅' });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
 app.use(express.json());
 
 // Mount des routes
