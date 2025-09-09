@@ -36,7 +36,7 @@ app.use(cors({
 app.get('/db-test', async (req, res) => {
   try {
     await sequelize.authenticate();
-    res.json({ status: 'ok', message: 'Connexion réussie ✅' });
+    res.json({ status: 'ok', message: 'Connexion réussiee ✅' });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
