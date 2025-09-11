@@ -41,7 +41,7 @@ function LoginForm() {
 
     try {
       // Envoi de la requête POST vers l'API backend pour tenter une connexion
-      const res = await axios.post('http://localhost:3000/auth/login', {
+      const res = await axios.post(`${API_BASE}/auth/login`, {
         email,
         password
       });
