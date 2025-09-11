@@ -21,7 +21,8 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   'http://localhost:3001',
   'https://level-up-2n89-iota.vercel.app',
-  'https://level-up-2n89-kdqchow56-dims-projects-645dd5d5.vercel.app'
+  'https://level-up-2n89-kdqchow56-dims-projects-645dd5d5.vercel.app',
+  'https://level-up-2n89-xqy5538lh-dims-projects-645dd5d5.vercel.app'
 ];
 
 app.use(cors({
