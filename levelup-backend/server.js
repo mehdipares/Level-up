@@ -25,6 +25,7 @@ const allowedOrigins = [
   'https://level-up-2n89-xqy5538lh-dims-projects-645dd5d5.vercel.app'
 ];
 
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
